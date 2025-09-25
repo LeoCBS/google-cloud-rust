@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use google_cloud_gax::conn::Channel;
 use google_cloud_gax::create_request;
+use google_cloud_gax::grpc::transport::Uri;
 use google_cloud_gax::grpc::Response;
 use google_cloud_gax::grpc::{Code, Status};
 use google_cloud_gax::retry::{invoke, MapErr, RetrySetting};
@@ -29,7 +30,8 @@ impl PublisherClient {
 
     #[inline]
     fn client(&self) -> InternalPublisherClient<Channel> {
-        InternalPublisherClient::new(self.cm.conn())
+        tracing::info!("using custom autority");
+        InternalPublisherClient::with_origin(self.cm.conn(), Uri::from_static("http://pubsub.googleapis.com"))
             .max_decoding_message_size(PUBSUB_MESSAGE_LIMIT)
             .max_encoding_message_size(PUBSUB_MESSAGE_LIMIT)
     }

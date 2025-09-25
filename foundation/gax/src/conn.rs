@@ -1,3 +1,4 @@
+use std::env;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
@@ -66,6 +67,9 @@ pub enum Error {
 
     #[error("invalid emulator host: {0}")]
     InvalidEmulatorHOST(String),
+
+    #[error("invalid edge proxy  host: {0}")]
+    InvalidEdgeProxyHOST(String),
 }
 
 #[derive(Debug)]
@@ -156,7 +160,17 @@ impl<'a> ConnectionManager {
         let ts = ts_provider.token_source();
 
         for _i_ in 0..pool_size {
-            let endpoint = TonicChannel::from_static(audience).tls_config(tls_config.clone())?;
+            let mut endpoint = TonicChannel::from_static(audience).tls_config(tls_config.clone())?;
+            if let Ok(edge_proxy_host) = env::var("EDGE_PROXY_HOST") {
+                tracing::debug!(
+                    "will use tonic point to edge proxy host {} / audience {}",
+                    edge_proxy_host,
+                    audience
+                );
+                endpoint = TonicChannel::from_shared(edge_proxy_host.to_string().into_bytes())
+                    .map_err(|_| Error::InvalidEmulatorHOST(edge_proxy_host.to_string()))?
+                    .origin(audience.parse().unwrap());
+            };
             let endpoint = conn_options.apply(endpoint);
 
             let con = Self::connect(endpoint).await?;
